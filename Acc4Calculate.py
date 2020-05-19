@@ -3,8 +3,8 @@ import pandas as pd
 import os
 
 def readDataSet(field=True):
+    cur_path = os.getcwd()
     if field == True:
-        cur_path = os.getcwd()
         dataset_path = cur_path + '\现场数据\超短期单点数据集'
         files = os.listdir(dataset_path)
         print(files)
@@ -16,6 +16,10 @@ def readDataSet(field=True):
             df = pd.read_excel(dataset_path + '\\' + file)
             df_all = pd.concat([df_all, df])
     else:
+        dataset_path = cur_path + '\云平台数据'
+        files = os.listdir(dataset_path)
+
+        super_short_term_single_points
 
 
 
