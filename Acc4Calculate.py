@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 
-def readDataSet(field=True):
+def readDataSet(field=True, dropNaN=True):
     '''
     :param field: 是否为现场数据, True-现场数据, False-云平台数据
     :return: super_short_term - 超短期数据, short_term - 短期数据
@@ -25,16 +25,25 @@ def readDataSet(field=True):
         dataset_path = cur_path + '\现场数据'
         files = os.listdir(dataset_path)
         super_short_term = super_short_term.reset_index(drop=True)
+        length = len(super_short_term)
         for file in files:
             if '理论功率15分钟' in file:
                 name = file[24:26] + file[27:29] + '.xlsx'
                 theo_power = pd.read_excel(dataset_path + '\\' + file)
-                available_power = theo_power.iloc[:, 3]
+                available_power = theo_power.iloc[:length, 3]
                 super_short_term = pd.concat([super_short_term, available_power], axis=1)
+        if len(available_power) == 0: # should read '理论功率5分钟':
+            for file in files:
+                if '理论功率5分钟' in file:
+                    theo_power = pd.read_excel(dataset_path + '\\' + file)
+                    theo_power = theo_power.iloc[[row for row in range(0, len(theo_power), 3)], :]
+                    available_power = theo_power.iloc[:length, 3]
+                    super_short_term = pd.concat([super_short_term, available_power], axis=1)
+
         for file in files:
             if '短期功率统计' == file[:6]:
                 power_stat = pd.read_excel(dataset_path + '\\' + file, header=1)
-                short_term = pd.concat([short_term, power_stat.iloc[:, 0], power_stat.iloc[:, 3], power_stat.iloc[:, 1]], axis=1)
+                short_term = pd.concat([short_term, power_stat.iloc[:length, 0], power_stat.iloc[:length, 3], power_stat.iloc[:length, 1]], axis=1)
         short_term = pd.concat([short_term, available_power], axis=1)
     else:
         dataset_path = cur_path + '\云平台数据'
@@ -46,16 +55,22 @@ def readDataSet(field=True):
                 super_short_term = pd.concat([super_short_term, \
                                     super_short_term_single_points.iloc[:, [0, 2, 3, 4, 5, 6, 7, 8, 9]], \
                                     super_short_term_single_points.iloc[:, 1]], axis=1)
+        length = len(super_short_term)
         for file in files:
             if '理论功率15分钟' in file:
                 theo_power = pd.read_excel(dataset_path + '\\' + file)
-                available_power = theo_power.iloc[:, 3]
+                available_power = theo_power.iloc[:length, 3]
                 super_short_term = pd.concat([super_short_term, available_power], axis=1)
         for file in files:
             if '风速功率对比统计' in file:
                 speed_VS_power = pd.read_excel(dataset_path + '\\' + file)
-                short_term = pd.concat([short_term, speed_VS_power.iloc[:, 0], speed_VS_power.iloc[:, 2], speed_VS_power.iloc[:, 1]], axis=1)
+                short_term = pd.concat([short_term, speed_VS_power.iloc[:length, 0], speed_VS_power.iloc[:length, 2], speed_VS_power.iloc[:length, 1]], axis=1)
         short_term = pd.concat([short_term, available_power], axis=1)
+
+    # handel with NaN -> drop the row which has any NaN-Value
+    if dropNaN == True:
+        super_short_term = super_short_term.dropna(axis=0, how='any')
+        short_term = short_term.dropna(axis=0, how='any')
 
     return super_short_term, short_term
 
@@ -215,9 +230,17 @@ def calc_and_2Excel(super_st, st, cap, base_coef=0.03, name='tmp.xlsx'):
 
 
 
-def write2Excel():
-    pass
 
 if __name__ == "__main__":
-    super_st, st = readDataSet(filed=True)
-    calc_and_2Excel(super_st, st, cap=402, name='现场.xlsx')
+    # change to your config
+    date = '0519' # until this date
+    name = '干八' # 桥六
+    isField = True #是否为现场数据
+    cap = 402 # 装机容量
+    drop_NaN = True # whether drop the NaN-Value in Dataset
+
+    print('config ready, let\'s run!')
+    super_st, st = readDataSet(field=isField, dropNaN=drop_NaN)
+    scene = '现场' if isField else '云平台'
+    calc_and_2Excel(super_st, st, cap=cap, name=date + name + scene +'.xlsx')
+    print('okay! File named ' + date + name + scene + '.xlsx has been writed to current path.')
